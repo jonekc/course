@@ -1,0 +1,182 @@
+﻿@page "/courses/{courseId}/parts/{id}/test"
+@attribute [Authorize]
+@inject IHttpService<QuestionModel> HttpService
+@inject IHttpService<SentQuestionModel> HttpServiceSend
+@inject IHttpService<ItemModel> HttpServiceItem
+@inject NavigationManager NavManager
+
+@if (isLoading)
+{
+    <Loader />
+}
+else
+{
+    if (questions != null)
+    {
+        int sum = questions.Sum(q => q.Points);
+        int score = item != null ? sentQuestions.Where(q => !newQuestionIds.Contains(q.QuestionId)).Sum(q => q.Points) : 0;
+        <h2 class="mb-4">Test (Punkty: @(item != null ? $"{score}/" : "")@sum)</h2>
+        <form @onsubmit="HandleSubmit">
+            @for (int i = 0; i < questions.Count; i++)
+            {
+                QuestionModel question = questions[i];
+                <div class="mb-3">
+                    <h5>@($"{i + 1}. {question.Description}") (Punkty: @(item != null && !newQuestionIds.Contains(question.QuestionId) ? $"{sentQuestions.FirstOrDefault(sq => sq.QuestionId == question.QuestionId)?.Points}/" : "")@question.Points)</h5>
+
+                    @if (question.Open)
+                    {
+                        bool correct = IsCorrect(question, i);
+                        string className = item != null && !newQuestionIds.Contains(question.QuestionId) ? (correct ? " text-success" : " text-danger") : "";
+                        <input type="text" value=@sentQuestions.FirstOrDefault(sq => sq.QuestionId == question.QuestionId)?.Answers[0]?.Name @oninput="(EventArgs) => { HandleInput(question.QuestionId,EventArgs.Value.ToString()); }" class=@($"form-control mt-2{className}") disabled=@(item != null && !newQuestionIds.Contains(question.QuestionId)) required />
+                        if (item != null && !newQuestionIds.Contains(question.QuestionId) && !correct)
+                        {
+                            <div class="mt-1">@question.Answers[0].Name</div>
+                        }
+                    }
+                    else
+                    {
+                        @for (int j = 0; j < question.Answers.Count; j++)
+                        {
+                            Answer answer = question.Answers[j];
+                            bool isChecked = sentQuestions.FirstOrDefault(sq => sq.QuestionId == question.QuestionId)?.Answers?.FirstOrDefault(a => a.Name == answer.Name)?.Correct ?? false;
+                            <div class="form-check">
+                                <label class=@GetCheckboxClass(isChecked,answer.Correct,question.QuestionId)><input type="checkbox" checked=@isChecked @onchange="eventArgs => { HandleCheckbox(answer.AnswerId, eventArgs.Value); }" disabled=@(item != null && !newQuestionIds.Contains(question.QuestionId)) class="form-check-input" />@answer.Name</label>
+                            </div>
+                        }
+                    }
+                </div>
+            }
+            <div class="mt-4">
+                @if (sendTest)
+                {
+                    <input type="submit" value="Prześlij" class="btn btn-primary" />
+                }
+                else
+                {
+                    if (item.NextItemId != 0)
+                    {
+                        <NavLink class="btn btn-primary" href=@($"/courses/{courseId}/parts/{item.NextItemId}")>Dalej</NavLink>
+                    }
+                    else
+                    {
+                        <NavLink class="btn btn-primary" href="">Dalej</NavLink>
+                    }
+                }
+            </div>
+        </form>
+    }
+    else
+    {
+        <NoData />
+    }
+}
+
+@code {
+    private List<QuestionModel> questions;
+    private bool isLoading = true;
+    [Parameter]
+    public string courseId { get; set; }
+    [Parameter]
+    public string id { get; set; }
+    private List<SentQuestionModel> sentQuestions { get; set; }
+    private ItemModel item { get; set; }
+    private bool sendTest { get; set; }
+    private List<int> newQuestionIds { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (int.TryParse(id, out int itemId))
+        {
+            questions = await HttpService.Get(itemId);
+            sentQuestions = await HttpServiceSend.Get(itemId);
+            newQuestionIds = new();
+            if (sentQuestions.Count == 0)
+            {
+                sentQuestions.AddRange(questions.Select(q => new SentQuestionModel() { QuestionId = q.QuestionId, Answers = q.Open ? new List<Answer>() { new Answer() { Name = "" } } : q.Answers.Select(a => { a.Correct = false; return a; }).ToList(), ItemId = itemId, Open = q.Open }).ToList());
+                sendTest = true;
+            }
+            else
+            {
+                item = await HttpServiceItem.GetOne(itemId);
+                for (int i = 0; i < questions.Count; i++)
+                {
+                    QuestionModel q = questions[i];
+                    if (sentQuestions.FirstOrDefault(sq => sq.QuestionId == q.QuestionId) == null)
+                    {
+                        sentQuestions.Add(new SentQuestionModel() { QuestionId = q.QuestionId, Answers = q.Open ? new List<Answer>() { new Answer() { Name = "" } } : q.Answers.Select(a => { a.Correct = false; return a; }).ToList(), ItemId = itemId, Open = q.Open });
+                        sendTest = true;
+                        newQuestionIds.Add(q.QuestionId);
+                    }
+                }
+            }
+            isLoading = false;
+        }
+    }
+
+    private void HandleInput(int questionId, string value)
+    {
+        foreach (SentQuestionModel question in sentQuestions)
+        {
+            if (question.QuestionId == questionId)
+            {
+                question.Answers[0].Name = value;
+            }
+        }
+    }
+
+    private void HandleCheckbox(int answerId, object isChecked)
+    {
+        foreach (SentQuestionModel question in sentQuestions)
+        {
+            Answer answer = question.Answers.FirstOrDefault(a => a.AnswerId == answerId);
+            if (answer != null)
+            {
+                answer.Correct = (bool)isChecked;
+            }
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        isLoading = true;
+        StateHasChanged();
+        foreach (SentQuestionModel question in sentQuestions)
+        {
+            question.Answers.RemoveAll(a => !a.Correct && !question.Open);
+        }
+
+        List<SentQuestionModel> questions = await HttpServiceSend.AddRange(sentQuestions);
+        int nextItemId = questions != null && questions.Count > 0 ? questions[0].NextItemId : 0;
+        if (nextItemId != 0)
+        {
+            NavManager.NavigateTo($"/courses/{courseId}/parts/{nextItemId}");
+        }
+        else
+        {
+            NavManager.NavigateTo("");
+        }
+    }
+
+    private bool IsCorrect(QuestionModel question, int i)
+    {
+        if (question.Answers.Any(a => a.Name.ToLower() == sentQuestions.FirstOrDefault(sq => sq.QuestionId == question.QuestionId)?.Answers[0]?.Name?.ToLower()))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    private string GetCheckboxClass(bool isChecked, bool correct, int questionId)
+    {
+        string baseClass = "form-check-label ";
+        if (item == null || newQuestionIds.Contains(questionId))
+        {
+            return baseClass;
+        }
+        if (isChecked)
+        {
+            return baseClass + (correct ? "text-success" : "text-danger");
+        }
+        return baseClass + (correct ? "text-success" : "");
+    }
+}

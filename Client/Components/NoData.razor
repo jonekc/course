@@ -1,0 +1,16 @@
+﻿@inject NavigationManager NavManager
+
+<div class="d-flex justify-content-center align-items-center flex-column h-100">
+    <h3>Nie udało się załadować danych</h3>
+    <p class="mt-1">Wystąpił błąd serwera lub wyszukiwany zasób nie istnieje</p>
+    <div class="mt-2">
+        <button type="button" class="btn btn-primary mt-2" @onclick=@Reload>Przeładuj</button>
+    </div>
+</div>
+
+@code {
+    private void Reload()
+    {
+        NavManager.NavigateTo(NavManager.Uri, true);
+    }
+}

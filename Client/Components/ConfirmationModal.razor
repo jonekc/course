@@ -1,0 +1,41 @@
+﻿@inject NavigationManager NavigationManager
+
+@if (show)
+{
+    <div class="backdrop" @onclick="CloseModal">
+        <div class="my-modal" @onclick:stopPropagation="true">
+            <button type="button" class="close" data-dismiss="modal" aria-label="Zamknij" @onclick="CloseModal">
+                <span aria-hidden="true">&times;</span>
+            </button>
+            <p>Czy na pewno chcesz usunąć "@elementText"?</p>
+            <div class="d-flex">
+                <button type="button" class="btn ml-auto" @onclick="CloseModal">Anuluj</button>
+                <button type="button" class="btn btn-danger" @onclick="Confirm">Usuń</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string elementText { get; set; }
+    [Parameter]
+    public bool show { get; set; }
+    [Parameter]
+    public EventCallback onDelete { get; set; }
+    [Parameter]
+    public EventCallback toggleModal { get; set; }
+
+    private void CloseModal()
+    {
+        toggleModal.InvokeAsync();
+        StateHasChanged();
+    }
+
+    private void Confirm()
+    {
+        toggleModal.InvokeAsync();
+        onDelete.InvokeAsync();
+        StateHasChanged();
+    }
+}

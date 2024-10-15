@@ -1,0 +1,170 @@
+﻿@page "/panel/courses/add"
+@page "/panel/courses/{id}"
+@attribute [Authorize(Roles = "Admin")]
+@inject IHttpService<CourseModel> HttpService
+@inject IHttpService<Category> HttpServiceCategory
+@inject NavigationManager NavManager
+
+@if (isLoading)
+{
+    <Loader />
+}
+else
+{
+    if (course != null)
+    {
+        <EditForm Model="@course" OnValidSubmit="HandleSubmit" Context=editContext>
+            <ObjectGraphDataAnnotationsValidator />
+            <div class="mb-4">
+                <div class="form-group">
+                    <label for="name" class="col-form-label">Nazwa</label>
+                    <div class="col-md-9 col-lg-10 p-0">
+                        <InputText id="name" class="form-control" @bind-Value=course.Name />
+                        <ValidationMessage For="@(() => course.Name)" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="category" class="col-form-label">Wybierz kategorię</label>
+                    <div class="col-md-9 col-lg-10 p-0">
+                        <InputSelect id="category" class="form-control" @bind-Value=course.CategoryId>
+                            @foreach (Category category in categories)
+                                    {
+                                <option value="@category.CategoryId" selected="@(category.CategoryId == course.CategoryId)">@category.Name</option>
+                                    }
+                        </InputSelect>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="newCategory" class="col-form-label">Albo stwórz nową</label>
+                    <div class="col-md-9 col-lg-10 p-0">
+                        <InputText id="newCategory" class="form-control" @bind-Value=newCategory />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="description" class="col-form-label">Opis</label>
+                    <div class="col-md-9 col-lg-10 p-0">
+                        <InputTextArea id="description" class="form-control" @bind-Value=course.Description />
+                        <ValidationMessage For="@(() => course.Description)" />
+                    </div>
+                </div>
+                <div class="bg-light px-3 py-2">@($"Punkty max: {course.MaxPoints}")</div>
+            </div>
+            @foreach (ItemModel item in course.Items)
+            {
+                <div class="card mt-2">
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label for=@($"title-{item.ItemId}") class="col-form-label">Tytuł</label>
+                            <div class="col-md-9 col-lg-10 p-0">
+                                <InputText id=@($"title-{item.ItemId}") class="form-control" @bind-Value=item.Name />
+                                <ValidationMessage For="@(() => item.Name)" />
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for=@($"itemDescription-{item.ItemId}") class="col-form-label">Opis</label>
+                            <div class="col-md-9 col-lg-10 p-0">
+                                <InputTextArea id=@($"itemDescription-{item.ItemId}") class="form-control" @bind-Value=item.Description />
+                                <ValidationMessage For="@(() => item.Description)" />
+                            </div>
+                        </div>
+                        @if (item.ItemId != 0)
+                        {
+                            string href = $"panel/courses/{id}/parts/{item.ItemId}";
+                            <a class="btn btn-primary mr-1" href=@href @onclick="() => EditDetails(editContext, href)" @onclick:preventDefault>Edytuj szczegóły</a>
+                        }
+                        <button type="button" class="btn btn-danger" @onclick="() => RemoveItem(item)">Usuń</button>
+                    </div>
+                    @{int itemPoints = item.ContentPoints + item.QuestionsPoints;
+                    }
+                    @if (itemPoints > 0)
+                    {
+                        <div class="card-footer">Punkty: @itemPoints</div>
+                    }
+                </div>
+            }
+            <div>
+                <button type="button" class="btn btn-primary mt-2" @onclick="() => AddItem(null)">Dodaj</button>
+            </div>
+            <div class="mt-4">
+                <NavLink class="mr-1" href="/panel/courses">Anuluj</NavLink>
+                <button type="submit" class="btn btn-primary" disabled=@isLoading>Zapisz</button>
+            </div>
+        </EditForm>
+    }
+    else
+    {
+        <NoData />
+    }
+}
+
+@code {
+    private CourseModel course;
+    private bool isLoading = true;
+    [Parameter]
+    public string id { get; set; }
+    private List<Category> categories;
+    private bool isAdding { get; set; }
+    private string newCategory { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (int.TryParse(id, out int courseId))
+        {
+            course = await HttpService.GetOne(courseId);
+        }
+        else
+        {
+            isAdding = true;
+            course = new() { Items = new() };
+        }
+
+        categories = await HttpServiceCategory.Get();
+        isLoading = false;
+    }
+
+    private async Task HandleSubmit(EditContext editContext)
+    {
+        isLoading = true;
+        if (!string.IsNullOrWhiteSpace(newCategory))
+        {
+            course.CategoryId = 0;
+            course.CategoryName = newCategory;
+        }
+        if (!isAdding)
+        {
+            course = await HttpService.Edit(course);
+        }
+        else
+        {
+            course = await HttpService.Add(course);
+            isAdding = false;
+            NavManager.NavigateTo($"/panel/courses{(course != null ? $"/{course.CourseId}" : "")}");
+        }
+        newCategory = "";
+        categories = await HttpServiceCategory.Get();
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private void AddItem(ItemModel parent)
+    {
+        ItemModel item = new() { };
+        course.Items.Add(item);
+        StateHasChanged();
+    }
+
+    private void RemoveItem(ItemModel item)
+    {
+        course.Items.Remove(item);
+        StateHasChanged();
+    }
+
+    private async Task EditDetails(EditContext editContext, string path)
+    {
+        if (editContext.Validate())
+        {
+            await HandleSubmit(editContext);
+            NavManager.NavigateTo(path);
+        }
+    }
+}

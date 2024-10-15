@@ -1,0 +1,75 @@
+﻿@page "/panel/stats/{id}"
+@attribute [Authorize(Roles = "Admin")]
+@inject IHttpService<SentItem> HttpService
+@inject NavigationManager NavManager
+
+@if (isLoading)
+{
+    <Loader />
+}
+else
+{
+    if (items != null)
+    {
+        @if (items.Count > 0)
+        {
+            <div class="mb-4">
+                <h3 class="card-title">@items[0].Item.Course.Name</h3>
+                @{string category = items[0].Item.Course.Category?.Name;}
+                @if (category != null)
+                {
+                    <h5 class="card-subtitle text-muted">@category</h5>
+                }
+            </div>
+            <div class="table-responsive">
+                <table class="table">
+                    <thead class="thead-light">
+                        <tr>
+                            <th scope="col">Lekcja</th>
+                            <th scope="col">Użytkownik</th>
+                            <th scope="col">Wysłane odpowiedzi</th>
+                            <th scope="col">Czas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (SentItem item in items)
+                        {
+                            <tr>
+                                <td>@item.Item.Name</td>
+                                <td>@item.User.Login</td>
+                                <td>@item.SentQuestions.Count</td>
+                                <td>@item.SentDate.ToLocalTime()</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p>Nikt nie rozpoczął jeszcze tego kursu</p>
+        }
+    }
+    else
+    {
+        <NoData />
+    }
+}
+
+@code {
+    private List<SentItem> items;
+    private bool isLoading = true;
+    [Parameter]
+    public string id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (int.TryParse(id, out int itemId))
+        {
+            HttpService.ChangePath("courses/stats");
+            items = await HttpService.Get(itemId);
+            HttpService.ChangePath("courses/send");
+            isLoading = false;
+        }
+    }
+}

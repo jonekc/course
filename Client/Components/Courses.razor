@@ -1,0 +1,64 @@
+﻿@if (isPanel)
+{
+    <div class="mb-3 p-0">
+        <NavLink class="btn btn-primary" href="panel/courses/add">Utwórz kurs</NavLink>
+    </div>
+}
+<div class="row px-3 pb-4 cards-list">
+    @foreach (CourseModel course in courses)
+    {
+        <div class="card p-0">
+            @if (course.Completed && !isPanel)
+            {
+                <div class="card-header bg-success text-white p-2">Skończony</div>
+            }
+            <div class="card-body">
+                <h3 class="card-title">@course.Name</h3>
+                @if (!string.IsNullOrWhiteSpace(course.CategoryName))
+                {
+                    <h5 class="card-subtitle mb-2 text-muted">@course.CategoryName</h5>
+                }
+                <p class="card-text">@course.Description</p>
+                <NavLink class="btn btn-primary mt-1" href=@(isPanel ? $"panel/courses/{course.CourseId}" : $"courses/{course.CourseId}")>@(isPanel ? "Edytuj" : "Start")</NavLink>
+                @if (isPanel)
+                {
+                    <NavLink class="btn btn-primary ml-1 mt-1" href=@($"panel/stats/{course.CourseId}")>Statystyki</NavLink>
+                    <button class="btn btn-danger mt-1" type="button" @onclick="() => ShowModal(course)">Usuń</button>
+                }
+            </div>
+            <div class="card-footer">@(course.Points > 0 && !isPanel ? $"Punkty: {course.Points}/{course.MaxPoints}" : $"Punkty max: {course.MaxPoints}")</div>
+        </div>
+    }
+</div>
+@if (selectedCourse != null)
+{
+    <ConfirmationModal show=@showModal elementText=@selectedCourse.Name onDelete="() => DeleteCourse(selectedCourse)" toggleModal="() => ToggleModal()" />
+}
+
+@code {
+    [Parameter]
+    public List<CourseModel> courses { get; set; }
+    [Parameter]
+    public bool isPanel { get; set; }
+    [Parameter]
+    public EventCallback<CourseModel> DeleteCourseAction { get; set; }
+    private bool showModal { get; set; }
+    private CourseModel selectedCourse { get; set; }
+
+    private void ShowModal(CourseModel course)
+    {
+        selectedCourse = course;
+        ToggleModal();
+    }
+
+    private void ToggleModal()
+    {
+        showModal = !showModal;
+        StateHasChanged();
+    }
+
+    private async Task DeleteCourse(CourseModel course)
+    {
+        await DeleteCourseAction.InvokeAsync(course);
+    }
+}

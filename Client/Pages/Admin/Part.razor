@@ -1,0 +1,160 @@
+﻿@page "/panel/courses/{courseId}/parts/{id}"
+@attribute [Authorize(Roles = "Admin")]
+@inject IHttpService<ItemModel> HttpService
+@inject NavigationManager NavManager
+@inject IJSRuntime JSRuntime
+
+@if (isLoading)
+{
+    <Loader />
+}
+else
+{
+    if (item != null)
+    {
+        <style>
+            div.ql-toolbar {
+                top: 0;
+                position: sticky;
+                background-color: white;
+                z-index: 10;
+            }
+        </style>
+        <EditForm Model="@item" OnValidSubmit="HandleSubmit" Context=editContext>
+            <DataAnnotationsValidator />
+            <div class="mb-4">
+                <div class="form-group">
+                    <label for="name" class="col-form-label">Nazwa</label>
+                    <div class="col-md-9 col-lg-10 p-0">
+                        <InputText id="name" class="form-control" @bind-Value=item.Name />
+                        <ValidationMessage For="@(() => item.Name)" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="description" class="col-form-label">Opis</label>
+                    <div class="col-md-9 col-lg-10 p-0">
+                        <InputTextArea id="description" class="form-control" @bind-Value=item.Description />
+                        <ValidationMessage For="@(() => item.Description)" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="contentPoints" class="col-form-label">Punkty za treść</label>
+                    <div class="col-md-9 col-lg-10 p-0">
+                        <InputNumber id="contentPoints" class="form-control" @bind-Value=item.ContentPoints />
+                        <ValidationMessage For="@(() => item.ContentPoints)" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="content" class="col-form-label">Zawartość</label>
+                    <div class="col-md-9 col-lg-10 p-0">
+                        <BlazoredTextEditor @ref="@editor" Placeholder="">
+                            <ToolbarContent>
+                                <select class="ql-header">
+                                    <option selected=""></option>
+                                    <option value="1"></option>
+                                    <option value="2"></option>
+                                    <option value="3"></option>
+                                    <option value="4"></option>
+                                    <option value="5"></option>
+                                </select>
+                                <span class="ql-formats">
+                                    <button class="ql-bold"></button>
+                                    <button class="ql-italic"></button>
+                                    <button class="ql-underline"></button>
+                                    <button class="ql-strike"></button>
+                                </span>
+                                <span class="ql-formats">
+                                    <select class="ql-color"></select>
+                                    <select class="ql-background"></select>
+                                </span>
+                                <span class="ql-formats">
+                                    <button class="ql-list" value="ordered"></button>
+                                    <button class="ql-list" value="bullet"></button>
+                                </span>
+                                <span class="ql-formats">
+                                    <button class="ql-link"></button>
+                                </span>
+                                <span class="ql-formats"><button class="ql-image" data-toggle="tooltip" data-placement="bottom" title="Wstaw obraz"></button></span>
+                            </ToolbarContent>
+                            <EditorContent>@((MarkupString)item.Content)</EditorContent>
+                        </BlazoredTextEditor>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <NavLink class="mr-1" href=@($"/panel/courses/{courseId}")>Anuluj</NavLink>
+                    @{string testHref = $"/panel/courses/{courseId}/parts/{item.ItemId}/test";}
+                    <a class="btn btn-secondary" href=@testHref @onclick=@(() => ChangeItem(editContext, testHref)) @onclick:preventDefault>@(item.QuestionsCount > 0 ? "Edytuj test" : "Stwórz test")</a>
+                    <button type="submit" class="btn btn-primary" disabled=@isLoading>Zapisz</button>
+                </div>
+                <div class="mt-2">
+                    @if (item.PrevItemId != 0)
+                    {
+                        string prevHref = $"/panel/courses/{courseId}/parts/{item.PrevItemId}";
+                        <a class="btn btn-primary mr-1" href=@prevHref @onclick=@(() => ChangeItem(editContext, prevHref)) @onclick:preventDefault>Wstecz</a>
+                    }
+                    @if (item.NextItemId != 0)
+                    {
+                        string nextHref = $"/panel/courses/{courseId}/parts/{item.NextItemId}";
+                        <a class="btn btn-primary" href=@nextHref @onclick=@(() => ChangeItem(editContext, nextHref)) @onclick:preventDefault>Dalej</a>
+                    }
+                </div>
+            </div>
+        </EditForm>
+    }
+    else
+    {
+        <NoData />
+    }
+}
+
+@code {
+    private ItemModel item;
+    private bool isLoading = true;
+    [Parameter]
+    public string id { get; set; }
+    [Parameter]
+    public string courseId { get; set; }
+    private BlazoredTextEditor editor;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (int.TryParse(id, out int itemId))
+        {
+            item = await HttpService.GetOne(itemId);
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        isLoading = true;
+        item.Content = await editor.GetHTML();
+        item = await HttpService.Edit(item);
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task ChangeItem(EditContext editContext, string path)
+    {
+        if (editContext.Validate())
+        {
+            await HandleSubmit();
+            NavManager.NavigateTo(path);
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await JSRuntime.InvokeVoidAsync("fixScrolling", null);
+        if (item != null)
+        {
+            if (int.TryParse(id, out int itemId))
+            {
+                isLoading = true;
+                item = await HttpService.GetOne(itemId);
+                isLoading = false;
+                StateHasChanged();
+            }
+        }
+    }
+}

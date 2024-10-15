@@ -1,0 +1,98 @@
+﻿@page "/courses/{courseId}/parts/{id}"
+@attribute [Authorize]
+@inject IHttpService<ItemModel> HttpService
+@inject IHttpService<SentItem> HttpServiceSend
+@inject NavigationManager NavManager
+
+@if (isLoading)
+{
+    <Loader />
+}
+else
+{
+    if (item != null)
+    {
+        <style>
+            div.part-content > p {
+                margin-bottom: 0 !important;
+            }
+        </style>
+        <h3>@item.Name</h3>
+        <p>@item.Description</p>
+        <div class="mb-3 part-content">@((MarkupString)item.Content)</div>
+        <div class="d-flex">
+            @if (item.PrevItemId != 0)
+            {
+                <NavLink class="btn btn-primary mr-1" href=@($"/courses/{courseId}/parts/{item.PrevItemId}")>Wstecz</NavLink>
+            }
+            @if (item.QuestionsCount > 0)
+            {
+                <a class="btn btn-primary" href=@($"/courses/{courseId}/parts/{itemId}/test") @onclick=@(() => SendItem(itemId, true)) @onclick:preventDefault>Zobacz test</a>
+            }
+            else
+            {
+                if (item.NextItemId != 0)
+                {
+                    <a class="btn btn-primary" href=@($"/courses/{courseId}/parts/{item.NextItemId}") @onclick=@(() => SendItem(item.NextItemId, false)) @onclick:preventDefault>Dalej</a>
+                }
+                else
+                {
+                    <a class="btn btn-primary" href="" @onclick=@(() => SendItem(item.NextItemId, false)) @onclick:preventDefault>Dalej</a>
+                }
+            }
+        </div>
+    }
+    else
+    {
+        <NoData />
+    }
+}
+
+@code {
+    private ItemModel item;
+    private bool isLoading = true;
+    [Parameter]
+    public string courseId { get; set; }
+    [Parameter]
+    public string id { get; set; }
+    private int itemId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (int.TryParse(id, out int itemId))
+        {
+            this.itemId = itemId;
+            item = await HttpService.GetOne(itemId);
+            isLoading = false;
+        }
+    }
+
+    private async Task SendItem(int id, bool test)
+    {
+        SentItem sentItem = new SentItem() { Item = new Item() { ItemId = item.ItemId, Name = "a", Course = new Course() { Name = "a" } }, User = new User() { Login = "a", Password = "a", CreatedDate = DateTime.UtcNow } };
+        await HttpServiceSend.Add(sentItem);
+        if (item.NextItemId != 0 || item.QuestionsCount > 0)
+        {
+            NavManager.NavigateTo($"/courses/{courseId}/parts/{id}" + (test ? "/test" : ""));
+        }
+        else
+        {
+            NavManager.NavigateTo("");
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (item != null)
+        {
+            if (int.TryParse(id, out int itemId))
+            {
+                this.itemId = itemId;
+                isLoading = true;
+                item = await HttpService.GetOne(itemId);
+                isLoading = false;
+                StateHasChanged();
+            }
+        }
+    }
+}

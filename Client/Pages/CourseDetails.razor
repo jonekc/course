@@ -1,0 +1,69 @@
+﻿@page "/courses/{id}"
+@attribute [Authorize]
+@inject IHttpService<CourseModel> HttpService
+@inject NavigationManager NavManager
+@inject ClientAuthenticationStateProvider AuthenticationStateProvider
+
+@if (isLoading)
+{
+    <Loader />
+}
+else
+{
+    if (course != null)
+    {
+        <style>
+            p {
+                white-space: pre-wrap;
+            }
+        </style>
+        <div class="mb-4">
+            <h3 class="card-title">@course.Name</h3>
+            @if (!string.IsNullOrWhiteSpace(course.CategoryName))
+            {
+                <h5 class="card-subtitle mb-2 text-muted">@course.CategoryName</h5>
+            }
+            <p class="card-text">@course.Description</p>
+            <div class="bg-light px-3 py-2">@(course.Points > 0 ? $"Punkty: {course.Points}/{course.MaxPoints}" : $"Punkty max: {course.MaxPoints}")</div>
+        </div>
+        @foreach (ItemModel item in course.Items)
+        {
+            <div class="card mt-2">
+                <div class="card-body">
+                    <h5 class="card-title">@item.Name</h5>
+                    <p class="card-text">@item.Description</p>
+                    <NavLink class="btn btn-primary" href=@($"courses/{id}/parts/{item.ItemId}")>Start</NavLink>
+                </div>
+                @{int itemPoints = item.ContentPoints + item.QuestionsPoints;
+                }
+                @if (itemPoints > 0)
+                {
+                    <div class="card-footer">Punkty: @itemPoints</div>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        <NoData />
+    }
+}
+
+@code {
+    private CourseModel course;
+    private bool isLoading = true;
+    [Parameter]
+    public string id { get; set; }
+    private bool isPanel;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isPanel = await AuthenticationStateProvider.IsPanel();
+
+        if (int.TryParse(id, out int courseId))
+        {
+            course = await HttpService.GetOne(courseId);
+            isLoading = false;
+        }
+    }
+}

@@ -1,0 +1,152 @@
+﻿@page "/panel/courses/{courseId}/parts/{id}/test"
+@attribute [Authorize(Roles = "Admin")]
+@inject IHttpService<QuestionModel> HttpService
+@inject NavigationManager NavManager
+
+@if (isLoading)
+{
+    <Loader />
+}
+else
+{
+    if (questions != null)
+    {
+        int sum = questions.Sum(q => q.Points);
+        <h2 class="mb-4">Test (Punkty: @sum)</h2>
+    }
+    <EditForm Model=@questions OnValidSubmit=@HandleSubmit>
+        <ObjectGraphDataAnnotationsValidator />
+        <div class="mb-3">
+            @if (questions != null)
+            {
+                @for (int i = 0; i < questions.Count; i++)
+                {
+                    QuestionModel question = questions[i];
+
+                    <div class="form-group">
+                        <label for=@($"description-{question.QuestionId}") class="col-form-label">Pytanie @(i + 1)<button type="button" class="btn btn-danger ml-2" @onclick="() => RemoveQuestion(question)">Usuń</button></label>
+                        <div class="col-md-9 col-lg-10 p-0">
+                            <InputTextArea id=@($"description-{question.QuestionId}") class="form-control" @bind-Value=question.Description />
+                            <ValidationMessage For="@(() => question.Description)" />
+                        </div>
+                    </div>
+                    <div class="form-row align-items-center form-group">
+                        <label for=@($"points-{question.QuestionId}") class="col-form-label">Punkty</label>
+                        <InputNumber id=@($"points-{question.QuestionId}") class="form-control" @bind-Value=question.Points style="width:75px;" />
+                        <InputCheckbox id=@($"open-{question.QuestionId}") class="ml-2" @bind-Value=question.Open />
+                        <label for=@($"open-{question.QuestionId}") class="form-check-label ml-1">Otwarte</label>
+                    </div>
+                    <div class="ml-4">
+                        @if (question.Answers != null)
+                        {
+                            @for (int j = 0; j < question.Answers.Count; j++)
+                            {
+                                Answer answer = question.Answers[j];
+                                @if (!question.Open)
+                                {
+                                    <div class="form-check pl-4">
+                                        <div class="form-row align-items-center">
+                                            <label>
+                                                <InputCheckbox class="form-check-input position-static" @bind-Value=@answer.Correct />
+                                            </label>
+                                            <label>
+                                                <InputText @bind-Value=@answer.Name class="form-control" />
+                                            </label>
+                                            <button type="button" class="btn btn-danger mb-2 ml-2" @onclick="() => RemoveAnswer(question.QuestionId, answer, question.IsNew)">Usuń</button>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="form-row align-items-center">
+                                        <label>
+                                            <InputText @bind-Value=@answer.Name class="form-control" />
+                                        </label>
+                                        <button type="button" class="btn btn-danger mb-2 ml-2" @onclick="() => RemoveAnswer(question.QuestionId, answer, question.IsNew)">Usuń</button>
+                                    </div>
+                                }
+                                <div>
+                                    <ValidationMessage For="@(() => answer.Name)" />
+                                </div>
+                            }
+                        }
+                        <div>
+                            <button type="button" class="btn btn-primary mt-2 mb-4" @onclick="() => AddAnswer(question.QuestionId,question.IsNew)">Dodaj odpowiedź</button>
+                        </div>
+                    </div>
+                }
+            }
+            <div>
+                <button type="button" class="btn btn-primary" @onclick="() => AddQuestion()">Dodaj pytanie</button>
+            </div>
+        </div>
+        <div class="mt-4">
+            <NavLink class="mr-1" href=@($"/panel/courses/{courseId}/parts/{id}")>Anuluj</NavLink>
+            <button type="submit" class="btn btn-primary" disabled=@isLoading>Zapisz</button>
+        </div>
+    </EditForm>
+}
+
+@code {
+    private List<QuestionModel> questions;
+    private bool isLoading = true;
+    [Parameter]
+    public string courseId { get; set; }
+    [Parameter]
+    public string id { get; set; }
+    private bool isNew { get; set; }
+    private int newQuestionId { get; set; }
+    private int itemId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (int.TryParse(id, out int itemId))
+        {
+            this.itemId = itemId;
+            questions = await HttpService.Get(itemId);
+            isNew = questions.Count == 0;
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        isLoading = true;
+        HttpService.ChangePath($"courses/items/{id}/questions");
+        if (isNew)
+        {
+            questions = await HttpService.AddRange(questions);
+        }
+        else
+        {
+            questions = await HttpService.EditRange(questions);
+        }
+        HttpService.ChangePath("courses/items/questions");
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private void AddQuestion()
+    {
+        questions.Add(new QuestionModel() { Answers = new(), IsNew = true, QuestionId = newQuestionId++, ItemId = itemId });
+        StateHasChanged();
+    }
+
+    private void AddAnswer(int questionId, bool isNew)
+    {
+        questions.FirstOrDefault(q => q.QuestionId == questionId && q.IsNew == isNew).Answers.Add(new Answer());
+        StateHasChanged();
+    }
+
+    private void RemoveQuestion(QuestionModel question)
+    {
+        questions.Remove(question);
+        StateHasChanged();
+    }
+
+    private void RemoveAnswer(int questionId, Answer answer, bool isNew)
+    {
+        questions.FirstOrDefault(q => q.QuestionId == questionId && q.IsNew == isNew).Answers.Remove(answer);
+        StateHasChanged();
+    }
+}

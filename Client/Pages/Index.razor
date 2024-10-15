@@ -1,0 +1,74 @@
+﻿@page "/"
+@page "/courses"
+@page "/panel"
+@page "/panel/courses"
+@attribute [Authorize]
+@inject IHttpService<CourseModel> HttpService
+@inject NavigationManager NavManager
+@inject ClientAuthenticationStateProvider AuthenticationStateProvider
+@implements IDisposable
+
+<style>
+    p {
+        white-space: pre-wrap;
+    }
+</style>
+
+@if (isLoading)
+{
+    <Loader />
+}
+else
+{
+    if (courses != null)
+    {
+        <Courses courses=@courses isPanel=@isPanel DeleteCourseAction=@DeleteCourse />
+    }
+}
+
+@code {
+    private List<CourseModel> courses;
+    private bool isLoading = true;
+    private bool isPanel;
+    private string path;
+
+    protected override async Task OnInitializedAsync()
+    {
+        path = NavManager.ToBaseRelativePath(NavManager.Uri);
+        NavManager.LocationChanged += LocationChange;
+        await Init();
+    }
+
+    private async Task Init()
+    {
+        isLoading = true;
+        isPanel = await AuthenticationStateProvider.IsPanel();
+        courses = await HttpService.Get();
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    async void LocationChange(object sender, LocationChangedEventArgs eventArgs)
+    {
+        path = NavManager.ToBaseRelativePath(NavManager.Uri);
+        if (path.Equals("") || path.Equals("courses") || path.Equals("panel") || path.Equals("panel/courses"))
+        {
+            await Init();
+        }
+    }
+
+    void IDisposable.Dispose()
+    {
+        NavManager.LocationChanged -= LocationChange;
+    }
+
+    private async Task DeleteCourse(CourseModel course)
+    {
+        bool success = await HttpService.Delete(course.CourseId);
+        if (success)
+        {
+            courses.Remove(course);
+            StateHasChanged();
+        }
+    }
+}

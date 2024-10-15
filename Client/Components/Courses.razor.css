@@ -1,0 +1,12 @@
+﻿.card-header {
+    margin-top: -1px;
+}
+
+.cards-list {
+    gap: 5px;
+}
+
+    .cards-list > .card {
+        flex-basis: calc(100% / 3);
+        min-width: 250px;
+    }
