@@ -31,7 +31,7 @@ namespace Projekt.Server
             services.AddRazorPages();
 
             // db context
-            services.AddDbContext<StudyContext>(opt => opt.UseSqlite(Configuration.GetConnectionString("StudyContext")));
+            services.AddDbContext<StudyContext>(opt => opt.UseNpgsql(Environment.GetEnvironmentVariable("CourseDatabase") ?? "Host=ep-raspy-lab-a2z5pdxe-pooler.eu-central-1.aws.neon.tech;Username=default;Password=DLFBI5JAECS6;Database=verceldb"));
 
             // Configure Authentication
             IConfiguration jwtConfig = Configuration.GetSection("JwtToken");
