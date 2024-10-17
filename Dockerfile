@@ -17,4 +17,8 @@ RUN dotnet publish "Projekt.Server.csproj" -c Release -o /app/publish
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+
+ARG ConnectionStrings__StudyContext
+ENV ConnectionStrings__StudyContext=${ConnectionStrings__StudyContext}
+
 ENTRYPOINT ["dotnet", "Projekt.Server.dll"]

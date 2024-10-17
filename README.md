@@ -1,8 +1,17 @@
 # Course application
 
-A website with C# programming tutorial.
+A website with a C# programming tutorial. Lessons include descriptions and tests. Depending on the type of question, you can choose pre-prepared answers or write your own. Score is visible after the test. Administrator can create new courses for users and see the statistics.
 
-## Deploying using Docker
+## Running app locally
 
-- docker build -t course .
-- docker run -p 8080:80 course
+Execute a following command in the project root directory:
+
+`export ConnectionStrings__StudyContext="" && dotnet run --project Server && unset ConnectionStrings__StudyContext`
+
+Insert a correct Postgres database connection string
+
+## Building and running a production Docker image
+
+- `docker build --build-arg ConnectionStrings__StudyContext="" -t course .`
+
+- `docker run -p 8080:80 --name course course`
