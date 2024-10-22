@@ -94,7 +94,7 @@ namespace Projekt.Server.Services
 
         public async Task<CourseModel> EditCourse(CourseModel course)
         {
-            Course foundCourse = await _context.Course.Include(c => c.Category).Include(c => c.Items).FirstOrDefaultAsync(c => c.CourseId == course.CourseId);
+            Course foundCourse = await _context.Course.Include(c => c.Category).Include(c => c.Items.OrderBy(i => i.ItemId)).FirstOrDefaultAsync(c => c.CourseId == course.CourseId);
             if (foundCourse == null)
             {
                 return null;
@@ -106,7 +106,7 @@ namespace Projekt.Server.Services
             List<Item> items = foundCourse.Items;
             List<Item> itemsToRemove = items.Where(ir => !course.Items.Any(i => i.ItemId == ir.ItemId)).ToList();
             items.RemoveAll(ir => itemsToRemove.Any(i => i.ItemId == ir.ItemId));
-            RemoveItems(itemsToRemove);
+            await RemoveItems(itemsToRemove);
 
             foreach (ItemModel item in course.Items)
             {
@@ -136,7 +136,7 @@ namespace Projekt.Server.Services
             {
                 return false;
             }
-            RemoveItems(course.Items);
+            await RemoveItems(course.Items);
             _context.Course.Remove(course);
             await _context.SaveChangesAsync();
             return true;
@@ -424,7 +424,7 @@ namespace Projekt.Server.Services
             return null;
         }
 
-        private async void RemoveItems(List<Item> items)
+        private async Task RemoveItems(List<Item> items)
         {
             IEnumerable<int> ids = items.Select(i => i.ItemId);
             List<SentItem> sentItems = await _context.SentItem.Include(i => i.Item).Where(si => ids.Contains(si.Item.ItemId)).ToListAsync();

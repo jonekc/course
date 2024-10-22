@@ -15,3 +15,9 @@ Insert a correct Postgres database connection string
 - `docker build --build-arg ConnectionStrings__StudyContext="" -t course .`
 
 - `docker run -p 8080:80 --name course course`
+
+## Database migrations
+
+- adding a migration after a model change: `export ConnectionStrings__StudyContext="" && dotnet ef migrations add [name] --project Server && unset ConnectionStrings__StudyContext`
+- removing the migration: `export ConnectionStrings__StudyContext="" && dotnet ef migrations remove --project Server && unset ConnectionStrings__StudyContext`
+- updating the database: `export ConnectionStrings__StudyContext="" && dotnet ef database update --project Server && unset ConnectionStrings__StudyContext`
