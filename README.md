@@ -21,3 +21,20 @@ Insert a correct Postgres database connection string
 - adding a migration after a model change: `export ConnectionStrings__StudyContext="" && dotnet ef migrations add [name] --project Server && unset ConnectionStrings__StudyContext`
 - removing the migration: `export ConnectionStrings__StudyContext="" && dotnet ef migrations remove --project Server && unset ConnectionStrings__StudyContext`
 - updating the database: `export ConnectionStrings__StudyContext="" && dotnet ef database update --project Server && unset ConnectionStrings__StudyContext`
+
+## User credentials
+
+This project is for demonstration purposes only so the basic user credentials are explicit:
+
+- login - student
+- password - S%342)+sA
+
+## Admin panel screenshots
+
+![image](https://github.com/user-attachments/assets/ba2ac18b-b354-44b8-ab78-10bd9d89cb6e)
+![image](https://github.com/user-attachments/assets/6e9cbd40-01d1-4d20-9719-8195c0df016f)
+![image](https://github.com/user-attachments/assets/04acb2d9-bc09-435d-ae00-543b7dc4c6a6)
+![image](https://github.com/user-attachments/assets/1ca05b84-2d92-478b-8460-86ccd7e836c9)
+
+
+
