@@ -407,7 +407,7 @@ namespace Projekt.Server.Services
 
         private async Task<int> GetNextItem(Item item)
         {
-            int id = (await _context.Item.Include(i => i.Course).Where(i => i.Course.CourseId == item.Course.CourseId).FirstOrDefaultAsync(i => i.ItemId > item.ItemId))?.ItemId ?? 0;
+            int id = (await _context.Item.Include(i => i.Course).Where(i => i.Course.CourseId == item.Course.CourseId).OrderBy(i => i.ItemId).FirstOrDefaultAsync(i => i.ItemId > item.ItemId))?.ItemId ?? 0;
             return id;
         }
 
